@@ -1,0 +1,247 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Conference Speakers</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            background-color: #f0f0f0;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+
+        .full-width-box-container {
+            display: grid;
+            grid-template-columns: 1fr 5px 1fr; /* Increased the width of the resize line to 5px */
+            background-color: #3498db;
+            border-radius: 10px;
+            width: 100%;
+            text-align: center;
+            color: #fff;
+            position: relative;
+            z-index: 1;
+        }
+
+        .full-width-box-left, .full-width-box-right {
+            height: 400px;
+            padding: 10px;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+        }
+
+        h2 {
+            margin: 0;
+            font-size: 24px;
+        }
+
+        .resizable {
+            cursor: col-resize;
+            background-color: #fff; /* Background color for the vertical line */
+            margin: 0;
+            padding: 0;
+            user-select: none; /* Prevent text selection while clicking the line */
+        }
+
+        .speakers-carousel {
+            width: 100%;
+            display: flex;
+            overflow: hidden;
+        }
+
+        .speaker-box-container {
+            display: flex;
+            transition: transform 0.5s ease-in-out;
+            position: relative;
+        }
+
+        .speaker-box {
+            background-color: #3498db;
+            border-radius: 10px;
+            width: 200px;
+            height: 112.5px;
+            margin: 10px;
+            flex: 0 0 200px;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            text-align: center;
+            color: #fff;
+            transition: background-color 0.3s;
+            position: relative;
+        }
+
+        .speaker-box.selected {
+            background-color: #e74c3c;
+        }
+
+        .overlay {
+            display: none;
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.5);
+            border-radius: 10px;
+            pointer-events: none;
+        }
+
+        .resize-checkbox {
+            margin-top: 10px;
+        }
+
+        /* Overlay for the currentIndex and currentIndex + modifier affected boxes */
+        .speaker-box.selected .overlay {
+            display: block;
+        }
+    </style>
+</head>
+<body>
+    <div class="full-width-box-container">
+        <div class="full-width-box-left">
+            <h2>Full Width Speaker - Left</h2>
+        </div>
+        <div class="resizable"></div>
+        <div class="full-width-box-right">
+            <h2>Full Width Speaker - Right</h2>
+        </div>
+    </div>
+
+    <div class="speakers-carousel">
+        <div class="speaker-box-container" id="speakers-container"></div>
+    </div>
+
+    <button id="prev-button">Previous</button>
+    <button id="next-button">Next</button>
+
+    <input type="checkbox" id="resize-enabled" class="resize-checkbox">
+    <label for="resize-enabled">Enable Resize</label>
+
+    <script>
+        const speakersContainer = document.getElementById("speakers-container");
+        const prevButton = document.getElementById("prev-button");
+        const nextButton = document.getElementById("next-button");
+        const resizableLine = document.querySelector(".resizable");
+        const resizeCheckbox = document.getElementById("resize-enabled");
+
+        const totalSpeakers = 15;
+        let modifier = 5;
+        let currentIndex = 3;
+        let resizeLimit = 150;
+
+        // Generate 15 speaker boxes
+        for (let i = 1; i <= totalSpeakers; i++) {
+            const speakerBox = document.createElement("div");
+            speakerBox.classList.add("speaker-box");
+            speakerBox.innerHTML = `
+                <h3>Speaker ${i}</h3>
+                <p>Topic: Web Development</p>
+                <div class="overlay" id="overlay-${i}"></div>
+            `;
+            speakersContainer.appendChild(speakerBox);
+        }
+
+        function updateCarousel() {
+            const maxIndex = Math.max(totalSpeakers - modifier, 0);
+            if (currentIndex > maxIndex) {
+                currentIndex = totalSpeakers - modifier;
+            }
+
+            const allOverlays = document.querySelectorAll(".overlay");
+            allOverlays.forEach(overlay => overlay.style.display = "none");
+
+            const inFocusOverlay = document.getElementById(`overlay-${currentIndex}`);
+            inFocusOverlay.style.display = "block";
+
+            const allSpeakerBoxes = document.querySelectorAll(".speaker-box");
+            allSpeakerBoxes.forEach(box => box.classList.remove("selected"));
+
+            const inFocusSpeaker = allSpeakerBoxes[currentIndex - 1];
+            inFocusSpeaker.classList.add("selected");
+
+            for (let i = currentIndex + 1; i <= currentIndex + modifier; i++) {
+                const overlay = document.getElementById(`overlay-${i}`);
+                if (overlay) {
+                    overlay.style.display = "block";
+                }
+            }
+
+            const translateXValue = (currentIndex - 1) * -220; // Subtract 1 to account for the initial position
+            speakersContainer.style.transform = `translateX(${translateXValue}px)`;
+        }
+
+        prevButton.addEventListener("click", () => {
+            if (currentIndex === 1) {
+                currentIndex = totalSpeakers - modifier;
+            } else {
+                currentIndex--;
+            }
+            updateCarousel();
+        });
+
+        nextButton.addEventListener("click", () => {
+            if (currentIndex > totalSpeakers - modifier - 1) {
+                currentIndex = 1;
+            } else {
+                currentIndex++;
+            }
+            updateCarousel();
+        });
+
+        let isResizing = false;
+        let initialX = 0;
+        let initialWidth = 0;
+        resizableLine.addEventListener("mousedown", (e) => {
+            if (resizeCheckbox.checked) {
+                isResizing = true;
+                initialX = e.clientX;
+                initialWidth = parseFloat(getComputedStyle(resizableLine).width);
+            }
+        });
+
+        document.addEventListener("mousemove", (e) => {
+            if (!isResizing) return;
+            const newWidth = initialWidth + (e.clientX - initialX);
+            const fullWidthBox = document.querySelector(".full-width-box-container");
+            const windowWidth = window.innerWidth;
+
+            if (newWidth >= resizeLimit && newWidth <= windowWidth - resizeLimit) {
+                const leftBoxWidth = newWidth;
+                const rightBoxWidth = fullWidthBox.clientWidth - newWidth;
+
+                resizableLine.style.left = `${leftBoxWidth}px`;
+
+                const fullWidthBoxLeft = document.querySelector(".full-width-box-left");
+                const fullWidthBoxRight = document.querySelector(".full-width-box-right");
+
+                fullWidthBoxLeft.style.width = `${leftBoxWidth}px`;
+                fullWidthBoxRight.style.width = `${rightBoxWidth}px`;
+            }
+        });
+
+        document.addEventListener("mouseup", () => {
+            isResizing = false;
+        });
+
+        resizeCheckbox.addEventListener("change", () => {
+            if (!resizeCheckbox.checked) {
+                resizableLine.style.left = "50%";
+
+                const fullWidthBoxLeft = document.querySelector(".full-width-box-left");
+                const fullWidthBoxRight = document.querySelector(".full-width-box-right");
+
+                fullWidthBoxLeft.style.width = "50%";
+                fullWidthBoxRight.style.width = "50%";
+            }
+        });
+
+        // Initial display
+        updateCarousel();
+    </script>
+</body>
+</html>
